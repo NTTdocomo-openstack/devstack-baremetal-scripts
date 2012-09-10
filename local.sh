@@ -13,6 +13,9 @@ fi
 MYSQL_USER=${MYSQL_USER:-root}
 BM_PXE_INTERFACE=${BM_PXE_INTERFACE:-eth1}
 
+$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal --cpu=1 --memory=1 --root_gb=10 --ephemeral_gb=20 --flavor=6 --swap=1024 --rxtx_factor=1
+$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal --key cpu_arch --value x86_64
+
 apt_get install dnsmasq syslinux ipmitool qemu-kvm open-iscsi
 
 apt_get install busybox tgt
@@ -44,6 +47,33 @@ echo "$KERNEL_ID"
 
 RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-deployment-ramdisk" --public --container-format ari --disk-format ari < "$RAMDISK" | grep ' id ' | get_field 2)
 echo "$RAMDISK_ID"
+
+echo "building ubuntu image"
+IMG=$DEST/ubuntu.img
+
+if ! [ -f "$IMG" ]; then
+    if ! [ -f $DEST/precise-server-cloudimg-amd64-root.tar.gz ]; then
+        wget http://cloud-images.ubuntu.com/precise/current/precise-server-cloudimg-amd64-root.tar.gz -O - > $DEST/precise-server-cloudimg-amd64-root.tar.gz
+    fi
+    dd if=/dev/zero of="$IMG" bs=1M count=0 seek=1024
+    mkfs -F -t ext4 "$IMG"
+    sudo mount -o loop "$IMG" /mnt/
+    sudo tar -C /mnt -xzf $DEST/precise-server-cloudimg-amd64-root.tar.gz
+    sudo rm /mnt/etc/resolv.conf
+    sudo sh -c 'echo nameserver 8.8.8.8 >/mnt/etc/resolv.conf'
+    sudo chroot /mnt apt-get -y install linux-image-3.2.0-26-generic vlan open-iscsi
+    sudo ln -sf ../run/resolvconf/resolv.conf /mnt/etc/resolv.conf
+    sudo cp /mnt/boot/vmlinuz-3.2.0-26-generic $DEST/kernel
+    sudo chmod a+r $DEST/kernel
+    cp /mnt/boot/initrd.img-3.2.0-26-generic $DEST/initrd
+    sudo umount /mnt
+fi
+
+REAL_KERNEL_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-kernel" --public --container-format aki --disk-format aki < "$DEST/kernel" | grep ' id ' | get_field 2)
+
+REAL_RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-deployment-ramdisk" --public --container-format ari --disk-format ari < "$DEST/initrd" | grep ' id ' | get_field 2)
+
+glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "Ubuntu" --public --container-format bare --disk-format raw --property kernel_id=$REAL_KERNEL_ID --property ramdisk_id=$REAL_RAMDISK_ID < "$IMG"
 
 TFTPROOT=$DEST/tftproot
 

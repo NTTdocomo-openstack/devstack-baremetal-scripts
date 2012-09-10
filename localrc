@@ -1,4 +1,4 @@
-#OFFLINE=True
+OFFLINE=True
 
 ADMIN_PASSWORD=password
 MYSQL_PASSWORD=password
