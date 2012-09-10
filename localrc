@@ -1,0 +1,27 @@
+#OFFLINE=True
+
+ADMIN_PASSWORD=password
+MYSQL_PASSWORD=password
+RABBIT_PASSWORD=password
+SERVICE_PASSWORD=password
+SERVICE_TOKEN=tokentoken
+
+FLOATING_RANGE=172.16.212.224/28
+
+NOVA_REPO=https://github.com/NTTdocomo-openstack/nova.git
+NOVA_BRANCH=nodes-in-caps
+#NOVA_BRANCH=multinode
+
+DEST=${DEST:-/opt/stack}
+LOG_DIR=$DEST/log
+mkdir -p $LOG_DIR
+
+EXTRA_OPTS=(
+vnc_keymap=ja
+log_dir=$LOG_DIR
+)
+
+PUBLIC_INTERFACE=eth0
+BM_PXE_INTERFACE=eth1
+FLAT_INTERFACE=eth2
+
