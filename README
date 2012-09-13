@@ -1,1 +1,14 @@
-scripts are tested only on Ubuntu 12.04 x86_64
+Scripts are tested only on Ubuntu 12.04 x86_64
+
+You may have to change some parts:
+in localrc:
+    FLOATING_RANGE
+    PUBLIC_INTERFACE
+    BM_PXE_INTERFACE
+    FLAT_INTERFACE
+in local.sh:
+    parameters for "nova-bm-manage node create" and "nova-bm-manage interface create"
+
+After stack.sh complete successfully, you can create a bare-metal instance
+using image 'Ubuntu' and flavor 'baremetal'.
+
