@@ -1,4 +1,4 @@
-OFFLINE=True
+#OFFLINE=True
 
 ADMIN_PASSWORD=password
 MYSQL_PASSWORD=password
@@ -11,7 +11,9 @@ FLOATING_RANGE=172.16.212.224/28
 NOVA_REPO=https://github.com/NTTdocomo-openstack/nova.git
 NOVA_BRANCH=nodes-in-caps
 #NOVA_BRANCH=multinode
+#NOVA_BRANCH=multinode-hypervisor_hostname
 
+LOG_COLOR=False
 DEST=${DEST:-/opt/stack}
 LOG_DIR=$DEST/log
 mkdir -p $LOG_DIR

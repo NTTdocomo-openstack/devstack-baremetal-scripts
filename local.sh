@@ -1,3 +1,5 @@
+set -x
+
 TOP_DIR=$(cd $(dirname "$0") && pwd)
 source $TOP_DIR/stackrc
 source $TOP_DIR/functions
@@ -59,10 +61,10 @@ if ! [ -f "$IMG" ]; then
     mkfs -F -t ext4 "$IMG"
     sudo mount -o loop "$IMG" /mnt/
     sudo tar -C /mnt -xzf $DEST/precise-server-cloudimg-amd64-root.tar.gz
-    sudo rm /mnt/etc/resolv.conf
-    sudo sh -c 'echo nameserver 8.8.8.8 >/mnt/etc/resolv.conf'
+    sudo mv /mnt/etc/resolv.conf /mnt/etc/resolv.conf_orig
+    sudo cp /etc/resolv.conf /mnt/etc/resolv.conf
     sudo chroot /mnt apt-get -y install linux-image-3.2.0-26-generic vlan open-iscsi
-    sudo ln -sf ../run/resolvconf/resolv.conf /mnt/etc/resolv.conf
+    sudo mv /mnt/etc/resolv.conf_orig /mnt/etc/resolv.conf
     sudo cp /mnt/boot/vmlinuz-3.2.0-26-generic $DEST/kernel
     sudo chmod a+r $DEST/kernel
     cp /mnt/boot/initrd.img-3.2.0-26-generic $DEST/initrd
@@ -119,12 +121,9 @@ mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET 
 
 $NOVA_BIN_DIR/nova-bm-manage db sync
 
-# Please change parameters according to your bare-metal machine
-node_id=$( $NOVA_BIN_DIR/nova-bm-manage node create --host `hostname` --cpus 2 --memory_mb=8192 --local_gb=250 --pm_address=172.16.212.6 --pm_user=test --pm_password=password --terminal_port=0 --prov_mac_address=3c:4a:92:72:38:23 )
-
-# Please change parameters according to your bare-metal machine
-$NOVA_BIN_DIR/nova-bm-manage interface create --node_id=$node_id --mac_address=12:34:56:78:90:ab --datapath_id=0x0 --port_no=0
-
+if [ -f ./bm-nodes.sh ]; then
+    . ./bm-nodes.sh
+fi
 
 NL=`echo -ne '\015'`
 
