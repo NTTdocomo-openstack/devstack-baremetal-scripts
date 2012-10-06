@@ -6,7 +6,7 @@ CACHE_DIR=$2
 SRC_URL=http://cloud-images.ubuntu.com/precise/current/precise-server-cloudimg-amd64-root.tar.gz
 SRC_CACHE=$CACHE_DIR/precise-server-cloudimg-amd64-root.tar.gz
 
-if ! [ -f "$IMG" ]; then
+if [ -f "$IMG" ]; then
     exit 0
 fi
 
