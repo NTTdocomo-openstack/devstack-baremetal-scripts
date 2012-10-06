@@ -14,9 +14,17 @@ else
 fi
 MYSQL_USER=${MYSQL_USER:-root}
 BM_PXE_INTERFACE=${BM_PXE_INTERFACE:-eth1}
+BM_PXE_PER_NODE=`trueorfalse False $BM_PXE_PER_NODE`
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal --cpu=1 --memory=1 --root_gb=10 --ephemeral_gb=20 --flavor=6 --swap=1024 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal --key cpu_arch --value x86_64
+$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.small --cpu=1 --memory=2048 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.small --key cpu_arch --value x86_64
+
+$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.medium --cpu=1 --memory=4096 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.medium --key cpu_arch --value x86_64
+
+$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.minimum --cpu=1 --memory=1 --root_gb=1 --ephemeral_gb=0 --swap=1 --rxtx_factor=1
+$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.minimum --key cpu_arch --value x86_64
+
 
 apt_get install dnsmasq syslinux ipmitool qemu-kvm open-iscsi
 
@@ -76,7 +84,9 @@ if [ -f "$DNSMASQ_PID" ]; then
 fi
 sudo /etc/init.d/dnsmasq stop
 sudo sudo update-rc.d dnsmasq disable
-sudo dnsmasq --conf-file= --port=0 --enable-tftp --tftp-root=$TFTPROOT --dhcp-boot=pxelinux.0 --bind-interfaces --pid-file=$DNSMASQ_PID --interface=$BM_PXE_INTERFACE --dhcp-range=192.168.175.100,192.168.175.254
+if [ "$BM_PXE_PER_NODE" = "False" ]; then
+    sudo dnsmasq --conf-file= --port=0 --enable-tftp --tftp-root=$TFTPROOT --dhcp-boot=pxelinux.0 --bind-interfaces --pid-file=$DNSMASQ_PID --interface=$BM_PXE_INTERFACE --dhcp-range=192.168.175.100,192.168.175.254
+fi
 
 
 mkdir -p $NOVA_DIR/baremetal/console
@@ -95,14 +105,22 @@ is power_manager nova.virt.baremetal.ipmi.Ipmi
 is instance_type_extra_specs cpu_arch:x86_64
 is baremetal_tftp_root $TFTPROOT
 #is baremetal_term /usr/local/bin/shellinaboxd
+is baremetal_dnsmasq_pid_dir $NOVA_DIR/baremetal/dnsmasq
+is baremetal_dnsmasq_lease_dir $NOVA_DIR/baremetal/dnsmasq
 is baremetal_deploy_kernel $KERNEL_ID
 is baremetal_deploy_ramdisk $RAMDISK_ID
 is scheduler_host_manager nova.scheduler.baremetal_host_manager.BaremetalHostManager
+is baremetal_pxe_vlan_per_host $BM_PXE_PER_NODE
+is baremetal_pxe_parent_interface $BM_PXE_INTERFACE
 
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'DROP DATABASE IF EXISTS nova_bm;'
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET latin1;'
 
+# workaround for invalid compute_node that non-bare-metal nova-compute has left
+mysql -u$MYSQL_USER -p$MYSQL_PASSWORD nova -e 'DELETE FROM compute_nodes;'
+
 $NOVA_BIN_DIR/nova-bm-manage db sync
+$NOVA_BIN_DIR/nova-bm-manage pxe_ip create --cidr 192.168.175.0/24
 
 if [ -f ./bm-nodes.sh ]; then
     . ./bm-nodes.sh
