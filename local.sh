@@ -52,24 +52,7 @@ echo "$RAMDISK_ID"
 
 echo "building ubuntu image"
 IMG=$DEST/ubuntu.img
-
-if ! [ -f "$IMG" ]; then
-    if ! [ -f $DEST/precise-server-cloudimg-amd64-root.tar.gz ]; then
-        wget http://cloud-images.ubuntu.com/precise/current/precise-server-cloudimg-amd64-root.tar.gz -O - > $DEST/precise-server-cloudimg-amd64-root.tar.gz
-    fi
-    dd if=/dev/zero of="$IMG" bs=1M count=0 seek=1024
-    mkfs -F -t ext4 "$IMG"
-    sudo mount -o loop "$IMG" /mnt/
-    sudo tar -C /mnt -xzf $DEST/precise-server-cloudimg-amd64-root.tar.gz
-    sudo mv /mnt/etc/resolv.conf /mnt/etc/resolv.conf_orig
-    sudo cp /etc/resolv.conf /mnt/etc/resolv.conf
-    sudo chroot /mnt apt-get -y install linux-image-3.2.0-26-generic vlan open-iscsi
-    sudo mv /mnt/etc/resolv.conf_orig /mnt/etc/resolv.conf
-    sudo cp /mnt/boot/vmlinuz-3.2.0-26-generic $DEST/kernel
-    sudo chmod a+r $DEST/kernel
-    cp /mnt/boot/initrd.img-3.2.0-26-generic $DEST/initrd
-    sudo umount /mnt
-fi
+./build-ubuntu-image.sh "$IMG" "$DEST"
 
 REAL_KERNEL_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-kernel" --public --container-format aki --disk-format aki < "$DEST/kernel" | grep ' id ' | get_field 2)
 
