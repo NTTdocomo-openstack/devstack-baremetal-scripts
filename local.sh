@@ -64,7 +64,7 @@ IMG=$DEST/ubuntu.img
 
 REAL_KERNEL_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-kernel" --public --container-format aki --disk-format aki < "$DEST/kernel" | grep ' id ' | get_field 2)
 
-REAL_RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-deployment-ramdisk" --public --container-format ari --disk-format ari < "$DEST/initrd" | grep ' id ' | get_field 2)
+REAL_RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-ramdisk" --public --container-format ari --disk-format ari < "$DEST/initrd" | grep ' id ' | get_field 2)
 
 glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "Ubuntu" --public --container-format bare --disk-format raw --property kernel_id=$REAL_KERNEL_ID --property ramdisk_id=$REAL_RAMDISK_ID < "$IMG"
 
@@ -119,8 +119,8 @@ mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET 
 # workaround for invalid compute_node that non-bare-metal nova-compute has left
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD nova -e 'DELETE FROM compute_nodes;'
 
-$NOVA_BIN_DIR/nova-bm-manage db sync
-$NOVA_BIN_DIR/nova-bm-manage pxe_ip create --cidr 192.168.175.0/24
+$NOVA_BIN_DIR/nova-baremetal-manage db sync
+$NOVA_BIN_DIR/nova-baremetal-manage pxe_ip create --cidr 192.168.175.0/24
 
 if [ -f ./bm-nodes.sh ]; then
     . ./bm-nodes.sh
@@ -144,4 +144,4 @@ echo "starting bm_deploy_server"
 screen -S stack -p n-bmd -X kill
 screen -S stack -X screen -t n-bmd
 sleep 1.5
-screen -S stack -p n-bmd -X stuff "cd $NOVA_DIR && $NOVA_BIN_DIR/bm_deploy_server $NL"
+screen -S stack -p n-bmd -X stuff "cd $NOVA_DIR && $NOVA_BIN_DIR/nova-baremetal-deploy-helper $NL"
