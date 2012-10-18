@@ -109,7 +109,6 @@ is baremetal_dnsmasq_pid_dir $NOVA_DIR/baremetal/dnsmasq
 is baremetal_dnsmasq_lease_dir $NOVA_DIR/baremetal/dnsmasq
 is baremetal_deploy_kernel $KERNEL_ID
 is baremetal_deploy_ramdisk $RAMDISK_ID
-is scheduler_host_manager nova.scheduler.baremetal_host_manager.BaremetalHostManager
 is baremetal_pxe_vlan_per_host $BM_PXE_PER_NODE
 is baremetal_pxe_parent_interface $BM_PXE_INTERFACE
 

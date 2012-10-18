@@ -20,6 +20,7 @@ EXTRA_OPTS=(
 vnc_keymap=ja
 log_dir=$LOG_DIR
 notification_driver=nova.openstack.common.notifier.log_notifier
+scheduler_host_manager=nova.scheduler.baremetal_host_manager.BaremetalHostManager
 )
 
 PUBLIC_INTERFACE=eth0
