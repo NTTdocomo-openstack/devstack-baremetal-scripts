@@ -16,18 +16,24 @@ MYSQL_USER=${MYSQL_USER:-root}
 BM_PXE_INTERFACE=${BM_PXE_INTERFACE:-eth1}
 BM_PXE_PER_NODE=`trueorfalse False $BM_PXE_PER_NODE`
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.small --cpu=1 --memory=2048 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.small --key cpu_arch --value x86_64
+# prevent vm instance types from going to bare-metal compute
+for vmtype in `nova-manage instance_type list|cut -d : -f 1 |grep ^m1`; do
+    nova-manage instance_type set_key --name=$vmtype --key hypervisor_type --value "s!= baremetal"
+done
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.medium --cpu=1 --memory=4096 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.medium --key cpu_arch --value x86_64
+nova-manage instance_type create --name=baremetal.small --cpu=1 --memory=2048 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.small --key cpu_arch --value x86_64
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.minimum --cpu=1 --memory=1 --root_gb=1 --ephemeral_gb=0 --swap=1 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.minimum --key cpu_arch --value x86_64
+nova-manage instance_type create --name=baremetal.medium --cpu=1 --memory=4096 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.medium --key cpu_arch --value x86_64
 
+nova-manage instance_type create --name=baremetal.xlarge --cpu=8 --memory=16384 --root_gb=160 --ephemeral_gb=0 --swap=0 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.xlarge --key cpu_arch --value x86_64
+
+nova-manage instance_type create --name=baremetal.minimum --cpu=1 --memory=1 --root_gb=1 --ephemeral_gb=0 --swap=1 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.minimum --key cpu_arch --value x86_64
 
 apt_get install dnsmasq syslinux ipmitool qemu-kvm open-iscsi
-
 apt_get install busybox tgt
 
 BMIB_REPO=https://github.com/NTTdocomo-openstack/baremetal-initrd-builder.git
