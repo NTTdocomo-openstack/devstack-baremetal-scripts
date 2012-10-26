@@ -133,12 +133,6 @@ fi
 
 NL=`echo -ne '\015'`
 
-echo "restarting nova-scheduler"
-screen -S stack -p n-sch -X kill
-screen -S stack -X screen -t n-sch
-sleep 1.5
-screen -S stack -p n-sch -X stuff "cd $NOVA_DIR && $NOVA_BIN_DIR/nova-scheduler $NL"
-
 echo "restarting nova-compute"
 screen -S stack -p n-cpu -X kill
 screen -S stack -X screen -t n-cpu
