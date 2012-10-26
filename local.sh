@@ -16,18 +16,24 @@ MYSQL_USER=${MYSQL_USER:-root}
 BM_PXE_INTERFACE=${BM_PXE_INTERFACE:-eth1}
 BM_PXE_PER_NODE=`trueorfalse False $BM_PXE_PER_NODE`
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.small --cpu=1 --memory=2048 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.small --key cpu_arch --value x86_64
+# prevent vm instance types from going to bare-metal compute
+for vmtype in `nova-manage instance_type list|cut -d : -f 1 |grep ^m1`; do
+    nova-manage instance_type set_key --name=$vmtype --key hypervisor_type --value "s!= baremetal"
+done
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.medium --cpu=1 --memory=4096 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.medium --key cpu_arch --value x86_64
+nova-manage instance_type create --name=baremetal.small --cpu=1 --memory=2048 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.small --key cpu_arch --value x86_64
 
-$NOVA_BIN_DIR/nova-manage instance_type create --name=baremetal.minimum --cpu=1 --memory=1 --root_gb=1 --ephemeral_gb=0 --swap=1 --rxtx_factor=1
-$NOVA_BIN_DIR/nova-manage instance_type set_key --name=baremetal.minimum --key cpu_arch --value x86_64
+nova-manage instance_type create --name=baremetal.medium --cpu=1 --memory=4096 --root_gb=10 --ephemeral_gb=20 --swap=1024 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.medium --key cpu_arch --value x86_64
 
+nova-manage instance_type create --name=baremetal.xlarge --cpu=8 --memory=16384 --root_gb=160 --ephemeral_gb=0 --swap=0 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.xlarge --key cpu_arch --value x86_64
+
+nova-manage instance_type create --name=baremetal.minimum --cpu=1 --memory=1 --root_gb=1 --ephemeral_gb=0 --swap=1 --rxtx_factor=1
+nova-manage instance_type set_key --name=baremetal.minimum --key cpu_arch --value x86_64
 
 apt_get install dnsmasq syslinux ipmitool qemu-kvm open-iscsi
-
 apt_get install busybox tgt
 
 BMIB_REPO=https://github.com/NTTdocomo-openstack/baremetal-initrd-builder.git
@@ -64,7 +70,7 @@ IMG=$DEST/ubuntu.img
 
 REAL_KERNEL_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-kernel" --public --container-format aki --disk-format aki < "$DEST/kernel" | grep ' id ' | get_field 2)
 
-REAL_RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-deployment-ramdisk" --public --container-format ari --disk-format ari < "$DEST/initrd" | grep ' id ' | get_field 2)
+REAL_RAMDISK_ID=$(glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "baremetal-real-ramdisk" --public --container-format ari --disk-format ari < "$DEST/initrd" | grep ' id ' | get_field 2)
 
 glance --os-auth-token $TOKEN --os-image-url http://$GLANCE_HOSTPORT image-create --name "Ubuntu" --public --container-format bare --disk-format raw --property kernel_id=$REAL_KERNEL_ID --property ramdisk_id=$REAL_RAMDISK_ID < "$IMG"
 
@@ -109,7 +115,6 @@ is baremetal_dnsmasq_pid_dir $NOVA_DIR/baremetal/dnsmasq
 is baremetal_dnsmasq_lease_dir $NOVA_DIR/baremetal/dnsmasq
 is baremetal_deploy_kernel $KERNEL_ID
 is baremetal_deploy_ramdisk $RAMDISK_ID
-is scheduler_host_manager nova.scheduler.baremetal_host_manager.BaremetalHostManager
 is baremetal_pxe_vlan_per_host $BM_PXE_PER_NODE
 is baremetal_pxe_parent_interface $BM_PXE_INTERFACE
 
@@ -119,8 +124,8 @@ mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET 
 # workaround for invalid compute_node that non-bare-metal nova-compute has left
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD nova -e 'DELETE FROM compute_nodes;'
 
-$NOVA_BIN_DIR/nova-bm-manage db sync
-$NOVA_BIN_DIR/nova-bm-manage pxe_ip create --cidr 192.168.175.0/24
+$NOVA_BIN_DIR/nova-baremetal-manage db sync
+$NOVA_BIN_DIR/nova-baremetal-manage pxe_ip create --cidr 192.168.175.0/24
 
 if [ -f ./bm-nodes.sh ]; then
     . ./bm-nodes.sh
@@ -144,4 +149,4 @@ echo "starting bm_deploy_server"
 screen -S stack -p n-bmd -X kill
 screen -S stack -X screen -t n-bmd
 sleep 1.5
-screen -S stack -p n-bmd -X stuff "cd $NOVA_DIR && $NOVA_BIN_DIR/bm_deploy_server $NL"
+screen -S stack -p n-bmd -X stuff "cd $NOVA_DIR && $NOVA_BIN_DIR/nova-baremetal-deploy-helper $NL"
