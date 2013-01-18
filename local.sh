@@ -12,6 +12,8 @@ if [ -d $NOVA_DIR/bin ] ; then
 else
     NOVA_BIN_DIR=/usr/local/bin
 fi
+DATA_DIR=${DATA_DIR:-${DEST}/data}
+NOVA_DATA_DIR=${NOVA_DATA_DIR:-${DATA_DIR}/nova}
 MYSQL_USER=${MYSQL_USER:-root}
 BM_PXE_INTERFACE=${BM_PXE_INTERFACE:-eth1}
 BM_PXE_PER_NODE=`trueorfalse False $BM_PXE_PER_NODE`
@@ -95,28 +97,28 @@ if [ "$BM_PXE_PER_NODE" = "False" ]; then
 fi
 
 
-mkdir -p $NOVA_DIR/baremetal/console
-mkdir -p $NOVA_DIR/baremetal/dnsmasq
+mkdir -p $NOVA_DATA_DIR/baremetal/console
+mkdir -p $NOVA_DATA_DIR/baremetal/dnsmasq
 
 inicomment /etc/nova/nova.conf DEFAULT firewall_driver
 
 function is() {
-    iniset /etc/nova/nova.conf DEFAULT "$1" "$2"
+    iniset /etc/nova/nova.conf baremetal "$1" "$2"
 }
 
-is baremetal_sql_connection mysql://$MYSQL_USER:$MYSQL_PASSWORD@127.0.0.1/nova_bm
-is compute_driver nova.virt.baremetal.driver.BareMetalDriver
-is baremetal_driver nova.virt.baremetal.pxe.PXE
-is power_manager nova.virt.baremetal.ipmi.Ipmi
+iniset /etc/nova/nova.conf DEFAULT compute_driver nova.virt.baremetal.driver.BareMetalDriver
+is sql_connection mysql://$MYSQL_USER:$MYSQL_PASSWORD@127.0.0.1/nova_bm
+is driver nova.virt.baremetal.pxe.PXE
+is power_manager nova.virt.baremetal.ipmi.IPMI
 is instance_type_extra_specs cpu_arch:x86_64
-is baremetal_tftp_root $TFTPROOT
-#is baremetal_term /usr/local/bin/shellinaboxd
-is baremetal_dnsmasq_pid_dir $NOVA_DIR/baremetal/dnsmasq
-is baremetal_dnsmasq_lease_dir $NOVA_DIR/baremetal/dnsmasq
-is baremetal_deploy_kernel $KERNEL_ID
-is baremetal_deploy_ramdisk $RAMDISK_ID
-is baremetal_pxe_vlan_per_host $BM_PXE_PER_NODE
-is baremetal_pxe_parent_interface $BM_PXE_INTERFACE
+is tftp_root $TFTPROOT
+if [ -x /usr/local/bin/shellinaboxd ]; then
+	is terminal /usr/local/bin/shellinaboxd
+fi
+is deploy_kernel $KERNEL_ID
+is deploy_ramdisk $RAMDISK_ID
+#is baremetal_pxe_vlan_per_host $BM_PXE_PER_NODE
+#is baremetal_pxe_parent_interface $BM_PXE_INTERFACE
 
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'DROP DATABASE IF EXISTS nova_bm;'
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET latin1;'
