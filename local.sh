@@ -127,13 +127,24 @@ mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'CREATE DATABASE nova_bm CHARACTER SET 
 mysql -u$MYSQL_USER -p$MYSQL_PASSWORD nova -e 'DELETE FROM compute_nodes;'
 
 $NOVA_BIN_DIR/nova-baremetal-manage db sync
-$NOVA_BIN_DIR/nova-baremetal-manage pxe_ip create --cidr 192.168.175.0/24
+#$NOVA_BIN_DIR/nova-baremetal-manage pxe_ip create --cidr 192.168.175.0/24
+
+NL=`echo -ne '\015'`
+
+echo "restarting nova-api"
+screen -S stack -p n-api -X kill
+screen -S stack -X screen -t n-api
+sleep 1.5
+screen -S stack -p n-api -X stuff "cd /opt/stack/nova && /opt/stack/nova/bin/nova-api || touch '/opt/stack/status/stack/n-api.failure' $NL"
+sleep 5
+
+# At this point, python-novaclient is a version of installed by pip.
+# Replace it with the one from git.
+(cd /opt/stack/python-novaclient; sudo python setup.py develop)
 
 if [ -f ./bm-nodes.sh ]; then
     . ./bm-nodes.sh
 fi
-
-NL=`echo -ne '\015'`
 
 echo "restarting nova-compute"
 screen -S stack -p n-cpu -X kill
