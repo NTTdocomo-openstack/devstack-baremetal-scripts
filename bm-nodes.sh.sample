@@ -1,9 +1,20 @@
-HOST=`hostname -f`
+nova_admin="nova --os-username admin --os-password $ADMIN_PASSWORD --os-tenant-name admin"
 
 # Please change parameters according to your bare-metal machine
-node_id=$( $NOVA_BIN_DIR/nova-baremetal-manage node create --host $HOST --cpus 2 --memory_mb=8192 --local_gb=250 --pm_address=172.16.212.6 --pm_user=test --pm_password=password --terminal_port=0 --prov_mac_address=3c:4a:92:72:38:23 )
+IPMI_ADDREESS=172.16.212.6
+IPMI_USERNAME=test
+IPMI_PASSWORD=password
+CPUS=2
+MEMORY_MB=8192
+LOCAL_GB=250
+MAC_FOR_BOOT=3c:4a:92:72:38:23
+MAC1=00:15:17:73:06:82
 
-# Please change parameters according to your bare-metal machine
-$NOVA_BIN_DIR/nova-baremetal-manage interface create --node_id=$node_id --mac_address=00:15:17:73:06:82 --datapath_id=0x0 --port_no=0
-$NOVA_BIN_DIR/nova-baremetal-manage interface create --node_id=$node_id --mac_address=00:15:17:73:06:83 --datapath_id=0x0 --port_no=0
+node=$( $nova_admin baremetal-node-create --pm_address=$IPMI_ADDRESS --pm_user=$IPMI_USERNAME --pm_password=$IPMI_PASSWORD --terminal_port=8000 `hostname -f` $CPUS $MEMORY_MB $LOCAL_GB $MAC_FOR_BOOT
+#node_id=$( echo "$node" | grep " id " | get_field 2 )
+# At present, 'nova baremetal-node-create' does not print the ID of the created node (a patch is in review now).
+# So as a workaround, assume the ID is 1.
+node_id=1
+
+$nova_admin baremetal-add-interface $node_id $MAC1
 
